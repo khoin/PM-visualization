@@ -49,18 +49,18 @@
 <canvas id="c" class=""></canvas>
 <div id="notation">
 	<span id="ft">g(t)</span>
-	<label>= a&middot;<span class="r1">sin(</span></label><input min=0 type="number" id="r1" class="r1" value=3 />
+	<label>= a&middot;<span class="r1">sin(</span></label><input min=0 type="number" id="r1" class="r1" value=5 />
 	<label>2πtf  + </label><input min=0 step=0.1 max=2 type="number" id="r3" class="r3" value=0.5 />
-	<label>π<span class="r2">sin(</span></label><input min=0 step=0.2 type="number" id="r2" class="r2" value=2 /><label>2πtf<span class="r2">)</span><span class="r1">)</span></label><br>
-	<label>f &nbsp;= </label><input min=40 step=10 type="number" id="f" value=880 /><label>Hz</label><br>
+	<label>π<span class="r2">sin(</span></label><input min=0 step=0.2 type="number" id="r2" class="r2" value=7 /><label>2πtf<span class="r2">)</span><span class="r1">)</span></label><br>
+	<label>f &nbsp;= </label><input min=40 step=10 type="number" id="f" value=40 /><label>Hz</label><br>
 	<label>a = </label><input min=0 max=0.15 step=0.01 type="number" id="a" value=0 />
 </div>
 <script>var d = document;
 //CONSTANTS BUT THEY'RE VAR
-var r1 = 3,
-	r2 = 2,
+var r1 = 5,
+	r2 = 7,
 	r3 = 0.5,
-	f = 440,
+	f = 40,
 	a = 0;
 
 d.getElementById("r1").addEventListener("change", function(e) {
