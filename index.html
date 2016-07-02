@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Visualizing Phase Modulation</title>
+	<link href="https://fonts.googleapis.com/css?family=Cormorant+Infant" rel="stylesheet">
+	<style>
+		html {padding:0; margin: 0; 
+			background: repeating-radial-gradient(rgba(0,0,0,0.4) 0%,#eee 1px,#eee);
+			background-size: 13px 13px;
+		}
+		body {
+			font-family: 'Cormorant Infant', serif;
+			color: #66656B;
+			margin: 0 auto;
+			padding: 35px;
+			max-width: 630px;
+			background: #f9f7f5;
+			box-shadow:  rgba(0,0,0,0.3) 0 0 25px 0;
+		}
+		canvas {
+			width:100%;
+			height:100%;
+		}
+		.half {
+			width:50%;
+		}
+		h1 {
+			font-size: 250%;
+			text-align: center;
+		}
+		#notation {
+			font-size: 40px; 
+			text-align: left;
+		}
+		#notation>input { font-weight: bold; }
+		input {
+			line-height: 1em; height: 1em; display: inline-block; background: #f9f7f5; border: none;
+			width: 1em; font-size: 40px; font-family: 'Cormorant Infant', serif;
+		}
+		.r1 { color: #C65D1F; }
+		.r2, .r3 { color: #1F66C4; }
+		#r2, #r3 { width: 1.5em; }
+		#f, #a 	{ width: 2.7em; text-align: right;}
+		#ft { color: #65907d; font-weight: bold;}
+	</style>
+</head>
+<body>
+<h1><em>Phase Modulation</em></h1>
+<canvas id="c" class=""></canvas>
+<div id="notation">
+	<span id="ft">g(t)</span>
+	<label>= a&middot;<span class="r1">sin(</span></label><input min=0 type="number" id="r1" class="r1" value=3 />
+	<label>2πtf  + </label><input min=0 step=0.1 max=2 type="number" id="r3" class="r3" value=0.5 />
+	<label>π<span class="r2">sin(</span></label><input min=0 step=0.2 type="number" id="r2" class="r2" value=2 /><label>2πtf<span class="r2">)</span><span class="r1">)</span></label><br>
+	<label>f &nbsp;= </label><input min=40 step=10 type="number" id="f" value=880 /><label>Hz</label><br>
+	<label>a = </label><input min=0 max=0.15 step=0.01 type="number" id="a" value=0 />
+</div>
+<script>var d = document;
+//CONSTANTS BUT THEY'RE VAR
+var r1 = 3,
+	r2 = 2,
+	r3 = 0.5,
+	f = 440,
+	a = 0;
+
+d.getElementById("r1").addEventListener("change", function(e) {
+	r1 = e.target.value;
+});
+d.getElementById("r2").addEventListener("change", function(e) {
+	r2 = e.target.value;
+});
+d.getElementById("r3").addEventListener("change", function(e) {
+	r3 = e.target.value;
+});
+d.getElementById("f").addEventListener("change", function(e) {
+	f = e.target.value;
+});
+d.getElementById("a").addEventListener("change", function(e) {
+	a = e.target.value;
+});
+
+// audio stuff
+var aC = new AudioContext();
+var node = aC.createScriptProcessor(4096, 0, 1);
+
+var t = 0;
+
+var dsp = function(t) {
+	return Math.sin(r1*Math.PI*2*t*f + r3*Math.PI*Math.sin(r2*Math.PI*2*t*f) )* a;
+}
+
+node.connect(aC.destination);
+node.onaudioprocess = function(audioProcessingEvent) {
+	var obuffer = audioProcessingEvent.outputBuffer;
+	for( var ch=0; ch < obuffer.numberOfChannels; ch++ ){
+		var odata = obuffer.getChannelData(ch);
+		for(var i=0; i<obuffer.length; i++) {
+			odata[i] = dsp(t + (i/aC.sampleRate) );
+		}
+	}
+	t += obuffer.length/aC.sampleRate;
+}
+
+// visual stuff
+	var
+		c = d.getElementById("c"),
+		l = c.getBoundingClientRect(),
+		ctx = c.getContext("2d"),
+		w = l.width;
+
+		c.width = w; c.height = w ;
+
+		ctx.lineWidth = 2;
+
+		function drawBg() {
+			ctx.fillStyle = "#f9f7f5";
+			ctx.fillRect(0,0, w, w);
+		}
+
+		function drawBox(x, y, w, h, c) {
+			ctx.strokeStyle = c || "#77756B";
+			ctx.strokeRect(x, y, w, h)
+		}
+
+		function drawLine(x,y, m,n) {
+			ctx.beginPath();
+			ctx.moveTo(x,y);			
+			ctx.lineTo(m,n);
+			ctx.stroke();
+		}
+
+		function drawWave(x,y, w,h, f, k) {
+			if(!k) {
+				ctx.beginPath();
+				moveTo( x + (w/2) + w*f(0) ,y);
+				for(var i = 0; i<h; i++) {
+					ctx.lineTo( x + (w/2) + (w/2)*f(i) , y+i);
+				}
+				ctx.stroke();
+			} else {
+				ctx.beginPath();
+				moveTo( x, y + (h/2) + h*f(0) );
+				for(var i = 0; i<w; i++) {
+					ctx.lineTo( x+i, y + (h/2) + (h/2)*f(i));
+				}
+				ctx.stroke();
+			}
+		}
+
+		var Wave = (function(f){
+			this.valueAt = function(z) {
+				return f(z);
+			}
+			return this;
+		});
+
+		var Buffe = (function(size) {
+			var buff = [];
+
+			for(var j=0; j<size; j++, buff[j]=0);
+
+			this.addValue = function(v) {
+				if(buff.length > size) buff.shift();
+				buff.push(v);
+			}
+			this.valueAt = function(i) {
+				return (buff[size-i])? buff[size-i]:0;
+			}
+
+			return this;
+		})
+
+		//carrier
+		var carrier = new Wave(function(z) {
+			return Math.sin( (-Date.now()/1000)*r1 + 4*Math.PI*(z/(w/2)) );
+		});
+		//mod
+		var modu 	= new Wave(function(z) {
+			return Math.sin( ( Date.now()/1000)*r2 + 4*Math.PI*(z/(w/2)));
+		});
+		//out
+		var output 	= new Buffe(~~w/2);
+
+		(function dr() {
+			ctx.strokeStyle = "#77756B";
+			drawBg();
+			//carrier
+			drawBox(w/8		, w/8				, w/8	, w/2	, "#C65D1F");
+			//modulator
+			drawBox(w*3/8	, w/8+ w*(2-r3)/8	, w/2	, w*r3/4, "#1F66C4");
+			//out
+			drawBox(w*3/8	, w*6/8				, w/2	, w/8	, "#65907d");
+			//reflector
+			drawLine(w/8	, w*6/8				, w/4	, w*7/8);
+
+			//carrier
+			ctx.strokeStyle = "#C65D1F";
+			drawWave(w/8, w/8, w/8, w/2, function(z) {
+				return carrier.valueAt(z);	
+			});
+			
+			//mod
+			ctx.strokeStyle = "#1F66C4";
+			drawWave(w*3/8, w/8+ w*(2-r3)/8, w/2, w*r3/4, function(z) {
+				return modu.valueAt(z);	
+			}, 1);
+
+			//out
+			ctx.strokeStyle = "#65907d";
+			output.addValue(carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)));
+			drawWave(w*3/8, w*6/8, w/2, w/8, function(z) {
+				return output.valueAt(z);
+				//return carrier.valueAt(w/4+z+w/16*modu.valueAt(0))
+			}, 1);
+
+			//mod to carrier
+			ctx.strokeStyle = "#1F66C4";
+			drawLine(	w*3/8, 
+						w*2.5/8 + w/16 	+ w*r3/8*modu.valueAt(0),
+						w/8		+ w/16	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)),
+						w*2.5/8 + w/16 	+ w*r3/8*modu.valueAt(0) );
+
+			//carrier to reflector
+			ctx.strokeStyle = "#C65D1F";
+			drawLine(	w/8		+ w/16	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)),
+						w*2.5/8 + w/16 	+ w*r3/8*modu.valueAt(0),
+						w/8		+ w/16	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)),
+						w*6/8 	+ w/16 	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0))
+						);
+			
+			ctx.strokeStyle = "#65907d";
+			//reflector to output
+			drawLine(	w/8		+ w/16	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)),
+						w*6/8 	+ w/16 	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)),
+						w*3/8,
+						w*6/8 	+ w/16 	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)));
+			requestAnimationFrame(dr);
+		})();
+</script>
+</body>
+</html>
