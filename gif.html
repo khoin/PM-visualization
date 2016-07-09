@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
+	<meta charset="utf-8">
 	<title>Visualizing Phase Modulation</title>
 	<link href="https://fonts.googleapis.com/css?family=Cormorant+Infant" rel="stylesheet">
+	<script src="gif.js"></script>
 	<style>
 		html {padding:0; margin: 0; 
 			background: repeating-radial-gradient(rgba(0,0,0,0.4) 0%,#eee 1px,#eee);
@@ -13,7 +15,7 @@
 			color: #66656B;
 			margin: 0 auto;
 			padding: 35px;
-			max-width: 630px;
+			max-width: 600px;
 			background: #f9f7f5;
 			box-shadow:  rgba(0,0,0,0.3) 0 0 25px 0;
 		}
@@ -48,21 +50,20 @@
 <h1><em>Phase Modulation</em></h1>
 <canvas id="c" class=""></canvas>
 <div id="notation">
-	<span id="ft">g(t)</span>
-	<label>= a&middot;<span class="r1">sin(</span></label><input min=0 type="number" id="r1" class="r1" value=5 />
-	<label>2πtf  + </label><input min=0 step=0.1 max=2 type="number" id="r3" class="r3" value=0.5 />
-	<label>π<span class="r2">sin(</span></label><input min=0 step=0.2 type="number" id="r2" class="r2" value=7 /><label>2πtf<span class="r2">)</span><span class="r1">)</span></label><br>
-	<label>f &nbsp;= </label><input min=40 step=10 type="number" id="f" value=40 /><label>Hz</label><br>
-	<label>a = </label><input min=0 max=0.15 step=0.01 type="number" id="a" value=0 />
+	<button onclick="dr();"> next frame</button>
+	<button onclick="aframe();"> add frame</button>
+	<button onclick="gif.render();"> render</button>
+	<button onclick="cycle();"> CYCLE </button>
+	<button onclick="cycle(123);"> CYCLE ADD</button>
 </div>
 <script>var d = document;
 //CONSTANTS BUT THEY'RE VAR
-var r1 = 5,
-	r2 = 7,
+var r1 = 3,
+	r2 = 2,
 	r3 = 0.5,
 	f = 40,
 	a = 0;
-
+/**
 d.getElementById("r1").addEventListener("change", function(e) {
 	r1 = e.target.value;
 });
@@ -78,7 +79,7 @@ d.getElementById("f").addEventListener("change", function(e) {
 d.getElementById("a").addEventListener("change", function(e) {
 	a = e.target.value;
 });
-
+**/
 // audio stuff
 var aC = new AudioContext();
 var node = aC.createScriptProcessor(4096, 0, 1);
@@ -102,7 +103,7 @@ node.onaudioprocess = function(audioProcessingEvent) {
 }
 
 // visual stuff
-	var _t = 0,
+	var
 		c = d.getElementById("c"),
 		l = c.getBoundingClientRect(),
 		ctx = c.getContext("2d"),
@@ -110,10 +111,10 @@ node.onaudioprocess = function(audioProcessingEvent) {
 
 		c.width = w; c.height = w ;
 
-		ctx.lineWidth = 2;
+		ctx.lineWidth = 3;
 
 		function drawBg() {
-			ctx.fillStyle = "#f9f7f5";
+			ctx.fillStyle = "#fff";
 			ctx.fillRect(0,0, w, w);
 		}
 
@@ -168,10 +169,26 @@ node.onaudioprocess = function(audioProcessingEvent) {
 			}
 
 			return this;
-		})
+		});
+var _t = 0;
+var zf = [];
+
+var gif = new GIF({
+	workers: 5,
+	quality: 40,
+	repeat: 0,
+	width: 600,
+	height: 600
+});
+
+
+function aframe() {
+	gif.addFrame(ctx, { copy: true, delay: 60}); dr();
+}
+
 
 		//carrier
-		var carrier = new Wave(function(z) {
+		var carrier = new Wave(function(z) { 
 			return Math.sin( (-_t/1000)*r1 + 4*Math.PI*(z/(w/2)) );
 		});
 		//mod
@@ -181,12 +198,27 @@ node.onaudioprocess = function(audioProcessingEvent) {
 		//out
 		var output 	= new Buffe(~~w/2);
 
-		(function dr() {
-			requestAnimationFrame(dr);
-			_t += 1000*Math.PI/(10000/f);
+		function dr() {
+			drawBg();
+			_t += 1000*Math.PI/72;
+
+			//carrier txt
+			ctx.font = "bold 22px monospace";
+			ctx.fillStyle="#C65D1F";
+			ctx.fillText("f₁ = "+r1, w/8	, w/8 -10);
+			//mod txt
+			ctx.font = "bold 22px monospace";
+			ctx.fillStyle="#1F66C4";
+			ctx.fillText("f₂ = "+r2, w*3/8	, w/8+ w*(2-r3)/8 -10);
+			//equation txt
+			ctx.font = "bold 22px monospace";
+			ctx.fillStyle="#C65D1F";
+			ctx.fillText("sin(f₁t               )", w*3/8	, w*6/8 - 10);
+			ctx.fillStyle="#1F66C4";
+			ctx.fillText("        + π/2 sin(f₂t) ", w*3/8	, w*6/8 - 10);
 
 			ctx.strokeStyle = "#77756B";
-			drawBg();
+			
 			//carrier
 			drawBox(w/8		, w/8				, w/8	, w/2	, "#C65D1F");
 			//modulator
@@ -211,6 +243,7 @@ node.onaudioprocess = function(audioProcessingEvent) {
 			//out
 			ctx.strokeStyle = "#65907d";
 			output.addValue(carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)));
+			if( Math.round( carrier.valueAt(w/4+w*r3/8*modu.valueAt(0))*100 ) == 0 ) console.log("zero!"), zf.push(_t/30) ;
 			drawWave(w*3/8, w*6/8, w/2, w/8, function(z) {
 				return output.valueAt(z);
 				//return carrier.valueAt(w/4+z+w/16*modu.valueAt(0))
@@ -237,8 +270,19 @@ node.onaudioprocess = function(audioProcessingEvent) {
 						w*6/8 	+ w/16 	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)),
 						w*3/8,
 						w*6/8 	+ w/16 	+ w/16*carrier.valueAt(w/4+w*r3/8*modu.valueAt(0)));
-			
-		})();
+			//requestAnimationFrame(dr);
+		};
+
+gif.on('finished', function(blob) {
+  window.open(URL.createObjectURL(blob));
+});
+
+function cycle(a) {
+	for(var i=0; i < 72*2; i++ ) {
+		if (!a || i%2 !== 0) { dr(); }
+		else { aframe(); }
+	}
+}
 </script>
 </body>
 </html>
